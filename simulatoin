@@ -1,0 +1,67 @@
+r <- 1
+GetGEEex <- function(r) {
+  
+  Y = data$Y[r,]  # n * 1
+  delta = data$delta[r,]  # n * 1
+  Z = data$Z[[r]]  # n * 3
+  # clsturer <- datasets[[r]]
+  # Y = clsturer$time  # n * 1
+  # delta = clsturer$cens  # n * 1
+  # Z = cbind(1,clsturer$X1,clsturer$X2) # n * 3
+  if( length(as.numeric( table( Y ) ) ) != length(Y)){
+    convergence <-  0
+    gamma <- Varrga  <- rep(0,2)
+    beta <- Varrbe <- rep(0,1)
+    print("###############################")
+  }else{
+    
+    X <- as.matrix(Z)
+    Z <- cbind(1,Z)
+    Igamma <- gamma.true
+    Ibeta <- beta.true
+  
+    stad <- F
+    id <- rep(1:K,each=n)
+source("C:/Users/86198/Desktop/geecure/es - 副本.r")
+ esfit <-   try(
+      geees (Y, delta, Ibeta,Igamma,X, Z, id, model="semi", corstr="exchangeable", stad , esmax=100, eps=1e-6) 
+    ,silent=F)   
+    if(is(esfit ,"try-error")==T  ) {
+    convergence <-  0
+    gamma <- Varrga  <- rep(0,2)
+    beta <- Varrbe <- rep(0,1)
+    }else{
+    convergence <-  as.numeric( esfit $ convergence )
+    gamma <- esfit$gamma
+    beta <- esfit$beta
+
+    gcor <- esfit$gcor
+    gphi <- esfit$gphi
+    bcor <- esfit$bcor
+    bphi <- esfit$bphi
+    w <- esfit$w
+    Lambda <- esfit$Lambda                                                                                         #
+    varfit <- try(geevarest(Y, delta, X, Z, id, gamma, beta, gphi, gcor, bphi, bcor, Lambda, w) ,silent=F) 
+  if(is(varfit ,"try-error")==T  ) {   
+  convergence <-  0
+  Varrga <-  rep(0,2)
+  Varrbe <- rep(0,1)
+}else{
+   Varrga <- varfit$varga
+    Varrbe <- varfit$varbe
+}
+
+    }
+
+    
+  }
+  print(r)
+  return(list(beta.est = beta, gamma.est = gamma, Varrga=Varrga, Varrbe=Varrbe, convergence =convergence ))
+}
+
+source("C:/Users/86198/Desktop/geecure/basesurv.r")
+
+source("C:/Users/86198/Desktop/geecure/geebt.r")
+source("C:/Users/86198/Desktop/geecure/geega.r")
+source("C:/Users/86198/Desktop/geecure/varest.r")
+GetGEEex(601)
