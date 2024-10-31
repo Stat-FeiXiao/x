@@ -1,0 +1,170 @@
+
+
+rm(list = ls())
+
+library(miscTools)
+library(maxLik)  # solve MLE
+library(nleqslv)
+library("foreign")
+library(numDeriv)  # Hessian matrix
+library(MASS)
+library(foreach)
+library(doParallel)
+library(bootstrap)
+library(boot)
+library(survival)
+library(mvtBinaryEP)
+library(survival)
+library(qif)
+ library(mvtBinaryEP)
+#-----
+
+
+#-------
+GetSimltData = function(replication){
+  
+
+  GetRandom <- function() {
+
+      mar_var<-1
+    ar1_cor <- function(n, r) {
+      exponent <- abs(matrix(1:n - 1, nrow = n, ncol = n, byrow = TRUE) - (1:n - 1))
+      r^exponent
+    }
+ 
+   r1=matrix(corr1,n,n); diag(r1)=1#ar1_cor(n,corr1)#
+   r2=matrix(corr2,n,n); diag(r2)=1#ar1_cor(n,corr2)#
+
+
+ icr=matrix(0,K,n)
+  x1=matrix(0,K,n)
+
+  for (g in 1:K)
+ {
+   
+   repeat{ xx=rnorm(n)
+           p=1-((1+exp(ga0+ga1*xx))^(-1))
+           icr1=try(ep(mu=p, R=r1, n=n, nRep=1)$y[1,],silent=TRUE) 
+           if(is(icr1,"try-error")==FALSE)  
+           break
+         } 
+ 
+   attributes(icr1)$names<-NULL
+   
+   icr[g,]=icr1
+
+   x1[g,]=xx
+
+ }
+
+
+
+ tt=matrix(0,K,n)
+ x2=matrix(0,K,n)
+ 
+   for(i in 1:K)
+    {    
+      icr11 <-icr[i,]
+      
+      mnorm <- mvrnorm(n=1,mu=rep(0,n),Sigma=r2   ) 
+      
+      x=x1[i,]
+      x2[i,]=x 
+      u = pnorm(mnorm,0,1) 
+   
+      for(m in 1:n){
+        if (icr11[m] == 1) {
+          tt[i,m]=(1/lambda[2])*(-exp(-b1*x[m])*log(1-u[m]))^(1/lambda[1])      
+          if(tt[i,m]==0) tt[i,m]<-1e-13
+        }else{tt[i,m] <- Inf }
+      }
+      
+    }      
+
+
+
+
+icr=as.vector(t(icr))
+x1=as.vector(t(x1))
+t1=as.vector(t(tt))
+c011 <- max(t1[icr == 1]+5,12)
+
+ censor=runif(K*n,1e-13,c011)
+ c1=rep(0,K*n)
+ t2=rep(0,K*n) 
+
+ for(i in 1:(K*n))
+  {
+   if(icr[i]==1) 
+      { if (t1[i]>censor[i])
+          { c1[i]=0 
+            t2[i]=censor[i] 
+          }
+         else
+          { c1[i]=1 
+            t2[i]=t1[i] 
+          }
+       }     
+    else
+       { c1[i]=0
+         t2[i]=censor[i]
+       } 
+   }
+
+
+xxx=as.vector(t(x2))
+zzz=x1
+    return(list(Y = t2, delta = c1,cure.status= icr, Z = xxx))
+  }
+  
+  Y = matrix(0, nrow = replication, ncol = K*n)
+  delta <- cure.status <- matrix(0, nrow = replication, ncol = K*n)
+  Z = vector("list",replication) 
+  
+  for(i in 1:replication){ 
+    print(i)
+    temp = GetRandom()
+    Y[i,] = temp$Y
+    delta[i,] = temp$delta
+    cure.status[i,] = temp$cure.status 
+    Z[[i]] = temp$Z
+  }
+  
+  
+  RC = apply(delta,1,function(x) sum(x==0)/length(x))
+  RC = mean(RC)  # right-censoring rate
+  
+  CR = apply(cure.status,1,function(x) sum(x==0)/length(x))
+  CR = mean(CR)  # cure rate
+
+   
+  return(list(Y = Y, delta = delta,cure.status=cure.status, Z = Z, RC = RC, CR =CR))
+}
+##############################
+
+
+
+
+
+
+## main progress
+
+corr1=0
+corr2=0.8
+ lambda=c(1,1)
+ga0 = -1.4#(CURE RATE 0.8):-1.4#(0.3): 0.8#(0.6):-0.4
+ga1 = 0.5
+ b1=  1
+ K=150 
+ n=4
+replication <- 2
+gamma.true <- c(ga0,ga1)
+beta.true <-  b1
+
+
+# Get Data
+data = GetSimltData(replication)  # Y and delta is 400 * n, Z[[r]] is 400 * 3
+
+
+#data$CR;data$RC
+#save(data,file="C:/Users/xiaof/Desktop/MixcureData/80cureR-ar1-w.rda")
